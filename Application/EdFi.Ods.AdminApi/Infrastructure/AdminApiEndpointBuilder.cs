@@ -18,7 +18,7 @@ public class AdminApiEndpointBuilder
         _verb = verb;
         _route = route.Trim('/');
         _handler = handler;
-        _pluralResourceName = _route.Split('/').First();
+        _pluralResourceName = _route.Split('/')[0];
     }
 
     private readonly IEndpointRouteBuilder _endpoints;
@@ -43,13 +43,17 @@ public class AdminApiEndpointBuilder
 
     public void BuildForVersions(params AdminApiVersions.AdminApiVersion[] versions)
     {
-        if (versions.Length == 0) throw new ArgumentException("Must register for at least 1 version");
-        if (_route == null) throw new Exception("Invalid endpoint registration. Route must be specified");
-        if (_handler == null) throw new Exception("Invalid endpoint registration. Handler must be specified");
+        if (versions.Length == 0)
+            throw new ArgumentException("Must register for at least 1 version");
+        if (_route == null)
+            throw new InvalidOperationException("Invalid endpoint registration. Route must be specified");
+        if (_handler == null)
+            throw new InvalidOperationException("Invalid endpoint registration. Handler must be specified");
 
         foreach (var version in versions)
         {
-            if (version == null) throw new ArgumentException("Version cannot be null");
+            if (version == null)
+                throw new ArgumentException("Version cannot be null");
 
             var versionedRoute = $"/{version}/{_route}";
 
@@ -74,6 +78,7 @@ public class AdminApiEndpointBuilder
             builder.WithGroupName(version.ToString());
             builder.WithResponseCode(401, "Unauthorized. The request requires authentication");
             builder.WithResponseCode(403, "Forbidden. The request is authenticated, but not authorized to access this resource");
+            builder.WithResponseCode(409, "Conflict. The request is authenticated, but it has a conflict with an existing element");
             builder.WithResponseCode(500, FeatureConstants.InternalServerErrorResponseDescription);
 
             if (_route.Contains("id", StringComparison.InvariantCultureIgnoreCase))

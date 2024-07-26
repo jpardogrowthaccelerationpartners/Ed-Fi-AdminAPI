@@ -3,8 +3,6 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using System.Collections.Generic;
-using System.Linq;
 using EdFi.Admin.DataAccess.Contexts;
 using EdFi.Security.DataAccess.Contexts;
 
@@ -21,9 +19,9 @@ public class GetApplicationsByClaimSetIdQuery : IGetApplicationsByClaimSetIdQuer
         _usersContext = usersContext;
     }
 
-    public IEnumerable<Application> Execute(int claimSetId)
+    public IEnumerable<Application> Execute(int securityContextClaimSetId)
     {
-        var claimSetName = GetClaimSetNameById(claimSetId);
+        var claimSetName = GetClaimSetNameById(securityContextClaimSetId);
 
         return GetApplicationsByClaimSetName(claimSetName);
     }

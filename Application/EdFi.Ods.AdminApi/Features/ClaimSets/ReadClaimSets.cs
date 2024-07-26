@@ -4,12 +4,11 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 using AutoMapper;
+using EdFi.Ods.AdminApi.Features.Applications;
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
+using EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
 using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
-using EdFi.Ods.AdminApi.Infrastructure.JsonContractResolvers;
-using EdFi.Ods.AdminApi.Infrastructure.Services.ClaimSetEditor;
-using Newtonsoft.Json;
 
 namespace EdFi.Ods.AdminApi.Features.ClaimSets;
 
@@ -17,32 +16,32 @@ public class ReadClaimSets : IFeature
 {
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        AdminApiEndpointBuilder.MapGet(endpoints, "/claimsets", GetClaimSets)
-            .WithDefaultDescription()
-            .WithRouteOptions(b => b.WithResponse<List<ClaimSetModel>>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+        AdminApiEndpointBuilder.MapGet(endpoints, "/claimSets", GetClaimSets)
+           .WithDefaultDescription()
+           .WithRouteOptions(b => b.WithResponse<List<ClaimSetModel>>(200))
+           .BuildForVersions(AdminApiVersions.V2);
 
-        AdminApiEndpointBuilder.MapGet(endpoints, "/claimsets/{id}", GetClaimSet)
+        AdminApiEndpointBuilder.MapGet(endpoints, "/claimSets/{id}", GetClaimSet)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<ClaimSetDetailsModel>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
-    internal Task<IResult> GetClaimSets(IGetAllClaimSetsQuery getClaimSetsQuery, IGetApplicationsByClaimSetIdQuery getApplications, IMapper mapper)
+    internal Task<IResult> GetClaimSets(
+        IGetAllClaimSetsQuery getClaimSetsQuery, IGetApplicationsByClaimSetIdQuery getApplications, IMapper mapper, int offset, int limit, string? sortBy, bool? descendingSorting, int? id, string? name)
     {
-        var claimSets = getClaimSetsQuery.Execute().ToList();
-        var model = mapper.Map<List<ClaimSetModel>>(claimSets);
+        var claimSets = mapper.Map<SortableList<ClaimSetModel>>(getClaimSetsQuery.Execute(offset, limit, id, name));
+        var model = claimSets.Sort(sortBy ?? string.Empty, descendingSorting ?? false);
         foreach (var claimSet in model)
         {
-            claimSet.ApplicationsCount = getApplications.ExecuteCount(claimSet.Id);           
+            claimSet.Applications = mapper.Map<List<SimpleApplicationModel>>(getApplications.Execute(claimSet.Id));
         }
-        return Task.FromResult(AdminApiResponse<List<ClaimSetModel>>.Ok(model));
+        return Task.FromResult(Results.Ok(model));
     }
 
     internal Task<IResult> GetClaimSet(IGetClaimSetByIdQuery getClaimSetByIdQuery,
         IGetResourcesByClaimSetIdQuery getResourcesByClaimSetIdQuery,
-        IGetApplicationsByClaimSetIdQuery getApplications,
-        IOdsSecurityModelVersionResolver odsSecurityModelResolver, IMapper mapper, int id)
+        IGetApplicationsByClaimSetIdQuery getApplications, IMapper mapper, int id)
     {
         ClaimSet claimSet;
         try
@@ -55,13 +54,17 @@ public class ReadClaimSets : IFeature
         }
 
         var allResources = getResourcesByClaimSetIdQuery.AllResources(id);
+        var applications = getApplications.Execute(id);
         var claimSetData = mapper.Map<ClaimSetDetailsModel>(claimSet);
-        claimSetData.ApplicationsCount = getApplications.ExecuteCount(id);
-        claimSetData.ResourceClaims = mapper.Map<List<ResourceClaimModel>>(allResources.ToList());
-        return Task.FromResult(AdminApiResponse<ClaimSetDetailsModel>.Ok(claimSetData,
-            new JsonSerializerSettings() {
-                Formatting = Formatting.Indented,
-                ContractResolver = new ShouldSerializeContractResolver(odsSecurityModelResolver)
-            }));
+        if (applications != null)
+        {
+            claimSetData.Applications = mapper.Map<List<SimpleApplicationModel>>(applications);
+        }
+        if (allResources != null)
+        {
+            claimSetData.ResourceClaims = mapper.Map<List<ClaimSetResourceClaimModel>>(allResources.ToList());
+        }
+
+        return Task.FromResult(Results.Ok(claimSetData));
     }
 }

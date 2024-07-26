@@ -17,23 +17,32 @@ public class ReadApplication : IFeature
         AdminApiEndpointBuilder.MapGet(endpoints, "/applications", GetApplications)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<ApplicationModel[]>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
 
         AdminApiEndpointBuilder.MapGet(endpoints, "/applications/{id}", GetApplication)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<ApplicationModel>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
-    internal Task<IResult> GetApplications(IGetVendorsQuery getVendorsAndApplicationsQuery, IMapper mapper)
+    internal Task<IResult> GetApplications(
+        IGetVendorsQuery getVendorsAndApplicationsQuery, IMapper mapper, int offset, int limit, string? sortBy, bool? descendingSorting, int? id, string? applicationName, string? claimsetName)
     {
         var vendors = getVendorsAndApplicationsQuery.Execute();
-        var applications = new List<ApplicationModel>();
+        var applications = new SortableList<ApplicationModel>().Sort(sortBy ?? string.Empty, descendingSorting ?? false);
         foreach (var vendor in vendors)
         {
             applications.AddRange(mapper.Map<List<ApplicationModel>>(vendor.Applications));
         }
-        return Task.FromResult(AdminApiResponse<List<ApplicationModel>>.Ok(applications));
+
+        var filteredApplications = applications.AsEnumerable()
+            .Where(a => id == null || a.Id == id)
+            .Where(a => applicationName == null || a.ApplicationName == applicationName)
+            .Where(a => claimsetName == null || a.ClaimSetName == claimsetName)
+            .Skip(offset)
+            .Take(limit);
+
+        return Task.FromResult(Results.Ok(filteredApplications));
     }
 
     internal Task<IResult> GetApplication(GetApplicationByIdQuery getApplicationByIdQuery, IMapper mapper, int id)
@@ -44,6 +53,6 @@ public class ReadApplication : IFeature
             throw new NotFoundException<int>("application", id);
         }
         var model = mapper.Map<ApplicationModel>(application);
-        return Task.FromResult(AdminApiResponse<ApplicationModel>.Ok(model));
+        return Task.FromResult(Results.Ok(model));
     }
 }

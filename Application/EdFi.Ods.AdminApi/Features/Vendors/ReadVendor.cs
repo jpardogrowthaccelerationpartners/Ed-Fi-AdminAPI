@@ -3,6 +3,8 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
+using System.Drawing;
+using System.Globalization;
 using AutoMapper;
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
@@ -17,18 +19,19 @@ public class ReadVendor : IFeature
         AdminApiEndpointBuilder.MapGet(endpoints, "/vendors", GetVendors)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<VendorModel[]>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
 
         AdminApiEndpointBuilder.MapGet(endpoints, "/vendors/{id}", GetVendor)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<VendorModel>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
-    internal Task<IResult> GetVendors(IGetVendorsQuery getVendorsQuery, IMapper mapper)
+    internal Task<IResult> GetVendors(
+        IGetVendorsQuery getVendorsQuery, IMapper mapper, int offset, int limit, string? sortBy, bool? descendingSorting, int? id, string? company, string? namespacePrefixes, string? contactName, string? contactEmailAddress)
     {
-        var vendorList = mapper.Map<List<VendorModel>>(getVendorsQuery.Execute());
-        return Task.FromResult(AdminApiResponse<List<VendorModel>>.Ok(vendorList));
+        var vendorList = mapper.Map<SortableList<VendorModel>>(getVendorsQuery.Execute(offset, limit, sortBy, descendingSorting, id, company, namespacePrefixes, contactName, contactEmailAddress));
+        return Task.FromResult(Results.Ok(vendorList.Sort(sortBy ?? string.Empty, descendingSorting ?? false)));
     }
 
     internal Task<IResult> GetVendor(IGetVendorByIdQuery getVendorByIdQuery, IMapper mapper, int id)
@@ -39,6 +42,6 @@ public class ReadVendor : IFeature
             throw new NotFoundException<int>("vendor", id);
         }
         var model = mapper.Map<VendorModel>(vendor);
-        return Task.FromResult(AdminApiResponse<VendorModel>.Ok(model));
+        return Task.FromResult(Results.Ok(model));
     }
 }

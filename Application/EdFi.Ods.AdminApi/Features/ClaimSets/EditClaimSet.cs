@@ -7,12 +7,10 @@ using AutoMapper;
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
 using EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
+using EdFi.Ods.AdminApi.Infrastructure.Documentation;
 using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
-using EdFi.Ods.AdminApi.Infrastructure.JsonContractResolvers;
-using EdFi.Ods.AdminApi.Infrastructure.Services.ClaimSetEditor;
 using FluentValidation;
 using FluentValidation.Results;
-using Newtonsoft.Json;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace EdFi.Ods.AdminApi.Features.ClaimSets;
@@ -21,10 +19,10 @@ public class EditClaimSet : IFeature
 {
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        AdminApiEndpointBuilder.MapPut(endpoints, "/claimsets/{id}", Handle)
+        AdminApiEndpointBuilder.MapPut(endpoints, "/claimSets/{id}", Handle)
         .WithDefaultDescription()
-        .WithRouteOptions(b => b.WithResponse<ClaimSetDetailsModel>(200))
-        .BuildForVersions(AdminApiVersions.V1);
+        .WithRouteOptions(b => b.WithResponseCode(200))
+        .BuildForVersions(AdminApiVersions.V2);
     }
 
     public async Task<IResult> Handle(Validator validator, IEditClaimSetCommand editClaimSetCommand,
@@ -33,9 +31,8 @@ public class EditClaimSet : IFeature
         IGetResourcesByClaimSetIdQuery getResourcesByClaimSetIdQuery,
         IGetApplicationsByClaimSetIdQuery getApplications,
         IAuthStrategyResolver strategyResolver,
-        IOdsSecurityModelVersionResolver odsSecurityModelResolver,
         IMapper mapper,
-        Request request, int id)
+        EditClaimSetRequest request, int id)
     {
         request.Id = id;
         await validator.GuardAsync(request);
@@ -55,64 +52,29 @@ public class EditClaimSet : IFeature
         {
             throw new ValidationException(new[] { new ValidationFailure(nameof(id), exception.Message) });
         }
-
-        var resourceClaims = mapper.Map<List<ResourceClaim>>(request.ResourceClaims);
-        var resolvedResourceClaims = strategyResolver.ResolveAuthStrategies(resourceClaims).ToList();
-
-        updateResourcesOnClaimSetCommand.Execute(
-            new UpdateResourcesOnClaimSetModel { ClaimSetId = updatedClaimSetId, ResourceClaims = resolvedResourceClaims });
-
-        var claimSet = getClaimSetByIdQuery.Execute(updatedClaimSetId);
-
-        var model = mapper.Map<ClaimSetDetailsModel>(claimSet);
-        model.ApplicationsCount = getApplications.ExecuteCount(updatedClaimSetId);
-        model.ResourceClaims = getResourcesByClaimSetIdQuery.AllResources(updatedClaimSetId)
-            .Select(r => mapper.Map<ResourceClaimModel>(r)).ToList();
-
-        return AdminApiResponse<ClaimSetDetailsModel>.Updated(
-            model,
-            "ClaimSet",
-            new JsonSerializerSettings()
-            {
-                Formatting = Formatting.Indented,
-                ContractResolver = new ShouldSerializeContractResolver(odsSecurityModelResolver)
-            }
-            );
+        return Results.Ok();
     }
 
     [SwaggerSchema(Title = "EditClaimSetRequest")]
-    public class Request
+    public class EditClaimSetRequest
     {
-        [SwaggerSchema(Description = "ClaimSet id", Nullable = false)]
+        [SwaggerExclude]
         public int Id { get; set; }
 
         [SwaggerSchema(Description = FeatureConstants.ClaimSetNameDescription, Nullable = false)]
         public string? Name { get; set; }
-
-        [SwaggerSchema(Description = FeatureConstants.ResourceClaimsDescription, Nullable = false)]
-        public List<RequestResourceClaimModel>? ResourceClaims { get; set; }
     }
 
-    public class Validator : AbstractValidator<Request>
+    public class Validator : AbstractValidator<EditClaimSetRequest>
     {
         private readonly IGetClaimSetByIdQuery _getClaimSetByIdQuery;
         private readonly IGetAllClaimSetsQuery _getAllClaimSetsQuery;
 
         public Validator(IGetClaimSetByIdQuery getClaimSetByIdQuery,
-            IGetAllClaimSetsQuery getAllClaimSetsQuery,
-            IGetResourceClaimsAsFlatListQuery getResourceClaimsAsFlatListQuery,
-            IGetAllAuthorizationStrategiesQuery getAllAuthorizationStrategiesQuery,
-            IOdsSecurityModelVersionResolver resolver,
-            IMapper mapper)
+            IGetAllClaimSetsQuery getAllClaimSetsQuery)
         {
             _getClaimSetByIdQuery = getClaimSetByIdQuery;
             _getAllClaimSetsQuery = getAllClaimSetsQuery;
-
-            var resourceClaims = (Lookup<string, ResourceClaim>)getResourceClaimsAsFlatListQuery.Execute()
-                .ToLookup(rc => rc.Name?.ToLower());
-
-            var authStrategyNames = getAllAuthorizationStrategiesQuery.Execute()
-                .Select(a => a.AuthStrategyName).ToList();
 
             RuleFor(m => m.Id).NotEmpty();
 
@@ -129,36 +91,15 @@ public class EditClaimSet : IFeature
             RuleFor(m => m.Name)
                 .MaximumLength(255)
                 .WithMessage(FeatureConstants.ClaimSetNameMaxLengthMessage);
-
-            RuleFor(m => m).Custom((claimSet, context) =>
-            {
-                var resourceClaimValidator = new ResourceClaimValidator(resolver);
-
-                if (claimSet.ResourceClaims != null && claimSet.ResourceClaims.Any())
-                {
-                    foreach (var resourceClaim in claimSet.ResourceClaims)
-                    {
-                        resourceClaimValidator.Validate(resourceClaims, authStrategyNames,
-                            resourceClaim, mapper.Map<List<ChildrenRequestResourceClaimModel>>(claimSet.ResourceClaims), context, claimSet.Name);
-                    }
-                }
-            });
         }
 
         private bool BeAnExistingClaimSet(int id)
         {
-            try
-            {
-                _getClaimSetByIdQuery.Execute(id);
-                return true;
-            }
-            catch (AdminApiException)
-            {
-                throw new NotFoundException<int>("claimSet", id);
-            }
+            _getClaimSetByIdQuery.Execute(id);
+            return true;
         }
 
-        private bool NameIsChanged(Request model)
+        private bool NameIsChanged(EditClaimSetRequest model)
         {
             return _getClaimSetByIdQuery.Execute(model.Id).Name != model.Name;
         }
@@ -168,4 +109,7 @@ public class EditClaimSet : IFeature
             return _getAllClaimSetsQuery.Execute().All(x => x.Name != name);
         }
     }
+
+
+
 }

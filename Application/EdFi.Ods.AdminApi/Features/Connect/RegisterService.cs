@@ -3,11 +3,13 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
+using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.Security;
 using FluentValidation;
 using FluentValidation.Results;
 using OpenIddict.Abstractions;
 using Swashbuckle.AspNetCore.Annotations;
+using System.Text.RegularExpressions;
 
 namespace EdFi.Ods.AdminApi.Features.Connect;
 
@@ -37,7 +39,6 @@ public class RegisterService : IRegisterService
         await _validator.GuardAsync(request);
 
         var existingApp = await _applicationManager.FindByClientIdAsync(request.ClientId!);
-
         if (existingApp != null)
             throw new ValidationException(new[] { new ValidationFailure(nameof(request.ClientId), $"ClientId {request.ClientId} already exists") });
 
@@ -61,8 +62,7 @@ public class RegisterService : IRegisterService
     private async Task<bool> RegistrationIsEnabledOrNecessary()
     {
         var registrationIsEnabled = _configuration.GetValue<bool>("Authentication:AllowRegistration");
-        var applicationCount = await _applicationManager.CountAsync();
-        return registrationIsEnabled || applicationCount == 0;
+        return await Task.FromResult(registrationIsEnabled);
     }
 
     public class Validator : AbstractValidator<Request>
@@ -70,7 +70,10 @@ public class RegisterService : IRegisterService
         public Validator()
         {
             RuleFor(m => m.ClientId).NotEmpty();
-            RuleFor(m => m.ClientSecret).NotEmpty();
+            RuleFor(m => m.ClientSecret)
+                .NotEmpty()
+                .Matches(new Regex(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{32,128}$"))
+                .WithMessage(FeatureConstants.ClientSecretValidationMessage);
             RuleFor(m => m.DisplayName).NotEmpty();
         }
     }

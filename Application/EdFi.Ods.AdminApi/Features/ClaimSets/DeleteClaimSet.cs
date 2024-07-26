@@ -6,6 +6,7 @@
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
 using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
+using EdFi.Ods.AdminApi.Infrastructure.Extensions;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
@@ -16,10 +17,10 @@ public class DeleteClaimSet : IFeature
 {
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        AdminApiEndpointBuilder.MapDelete(endpoints, "/claimsets/{id}", Handle)
+        AdminApiEndpointBuilder.MapDelete(endpoints, "/claimSets/{id}", Handle)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponseCode(200, FeatureConstants.DeletedSuccessResponseDescription))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
     public Task<IResult> Handle(IDeleteClaimSetCommand deleteClaimSetCommand, [FromServices] IGetClaimSetByIdQuery getClaimSetByIdQuery, IGetApplicationsByClaimSetIdQuery getApplications, int id)
@@ -36,18 +37,16 @@ public class DeleteClaimSet : IFeature
             throw new ValidationException(new[] { new ValidationFailure(nameof(id), exception.Message) });
         }
 
-        return Task.FromResult(AdminApiResponse.Deleted("ClaimSet"));
+        return Task.FromResult(Results.Ok("ClaimSet".ToJsonObjectResponseDeleted()));
     }
 
     private static void CheckClaimSetExists(int id, IGetClaimSetByIdQuery query)
     {
-        try
+        var claimSet = query.Execute(id);
+        if (claimSet != null && !claimSet.IsEditable)
         {
-            query.Execute(id);
-        }
-        catch (AdminApiException)
-        {
-            throw new NotFoundException<int>("claimset", id);
+            throw new ValidationException(new[] { new ValidationFailure(nameof(id),
+                $"Claim set ({claimSet.Name}) is system reserved. May not be modified.") });
         }
     }
 

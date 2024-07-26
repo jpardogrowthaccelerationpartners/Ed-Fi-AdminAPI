@@ -3,30 +3,34 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using EdFi.Ods.AdminApi.Infrastructure.Services.ClaimSetEditor;
 using Newtonsoft.Json;
+using Swashbuckle.AspNetCore.Annotations;
 
-namespace EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
-
-public class ResourceClaim
+namespace EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor
 {
-    public int Id { get; set; }
-    public int ParentId { get; set; }
-    public string? ParentName { get; set; }
-    public string? Name { get; set; }
-    public bool Create { get; set; }
-    public bool Read { get; set; }
-    public bool Update { get; set; }
-    public bool Delete { get; set; }
-    public bool ReadChanges { get; set; }
-    [JsonIgnore]
-    public bool IsParent { get; set; }
-    public ClaimSetResourceClaimActionAuthStrategies?[] DefaultAuthStrategiesForCRUD { get; set; } = Array.Empty<ClaimSetResourceClaimActionAuthStrategies>();
-    public ClaimSetResourceClaimActionAuthStrategies?[] AuthStrategyOverridesForCRUD { get; set; } = Array.Empty<ClaimSetResourceClaimActionAuthStrategies>();
-    public List<ResourceClaim> Children { get; set; } = new();
-
-    public ResourceClaim()
+    public class ResourceClaim
     {
-        Children = new List<ResourceClaim>();
+        public int Id { get; set; }
+        public int ParentId { get; set; }
+        public string? ParentName { get; set; }
+        public string? Name { get; set; }
+        public List<ResourceClaimAction>? Actions { get; set; }
+        [JsonIgnore]
+        public bool IsParent { get; set; }
+        public List<ClaimSetResourceClaimActionAuthStrategies?> DefaultAuthorizationStrategiesForCRUD { get; set; } = new List<ClaimSetResourceClaimActionAuthStrategies?>();
+        public List<ClaimSetResourceClaimActionAuthStrategies?> AuthorizationStrategyOverridesForCRUD { get; set; } = new List<ClaimSetResourceClaimActionAuthStrategies?>();
+        public List<ResourceClaim> Children { get; set; }
+
+        public ResourceClaim()
+        {
+            Children = new List<ResourceClaim>();
+        }
+    }
+
+    [SwaggerSchema(Title = "ResourceClaimAction")]
+    public class ResourceClaimAction
+    {
+        public string? Name { get; set; }
+        public bool Enabled { get; set; }
     }
 }

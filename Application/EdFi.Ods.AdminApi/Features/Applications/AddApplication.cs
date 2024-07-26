@@ -5,13 +5,15 @@
 
 using AutoMapper;
 using EdFi.Admin.DataAccess.Contexts;
+using EdFi.Ods.AdminApi.Helpers;
 using EdFi.Ods.AdminApi.Infrastructure;
-using EdFi.Ods.AdminApi.Infrastructure.Documentation;
-using EdFi.Ods.AdminApi.Infrastructure.Database.Commands;
-using FluentValidation;
-using Swashbuckle.AspNetCore.Annotations;
-using FluentValidation.Results;
 using EdFi.Ods.AdminApi.Infrastructure.Commands;
+using EdFi.Ods.AdminApi.Infrastructure.Database.Commands;
+using EdFi.Ods.AdminApi.Infrastructure.Documentation;
+using FluentValidation;
+using FluentValidation.Results;
+using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace EdFi.Ods.AdminApi.Features.Applications;
 
@@ -22,16 +24,16 @@ public class AddApplication : IFeature
         AdminApiEndpointBuilder.MapPost(endpoints, "/applications", Handle)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponse<ApplicationResult>(201))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
-    public async Task<IResult> Handle(Validator validator, IAddApplicationCommand addApplicationCommand, IMapper mapper, IUsersContext db, Request request)
+    public async Task<IResult> Handle(Validator validator, IAddApplicationCommand addApplicationCommand, IMapper mapper, IUsersContext db, Request request, IOptions<AppSettings> options)
     {
         await validator.GuardAsync(request);
         GuardAgainstInvalidEntityReferences(request, db);
-        var addedApplicationResult = addApplicationCommand.Execute(request);
+        var addedApplicationResult = addApplicationCommand.Execute(request, options);
         var model = mapper.Map<ApplicationResult>(addedApplicationResult);
-        return AdminApiResponse<ApplicationResult>.Created(model, "Application", $"/applications/{model.ApplicationId}");
+        return Results.Created($"/applications/{model.Id}", model);
     }
 
     private void GuardAgainstInvalidEntityReferences(Request request, IUsersContext db)
@@ -39,8 +41,40 @@ public class AddApplication : IFeature
         if (null == db.Vendors.Find(request.VendorId))
             throw new ValidationException(new[] { new ValidationFailure(nameof(request.VendorId), $"Vendor with ID {request.VendorId} not found.") });
 
-        if (request.ProfileId.HasValue && db.Profiles.Find(request.ProfileId) == null)
-            throw new ValidationException(new[] { new ValidationFailure(nameof(request.ProfileId), $"Profile with ID {request.ProfileId} not found.") });
+        ValidateProfileIds(request, db);
+        ValidateOdsInstanceIds(request, db);
+    }
+
+    private static void ValidateProfileIds(Request request, IUsersContext db)
+    {
+        var allProfileIds = db.Profiles.Select(p => p.ProfileId).ToList();
+
+        if ((request.ProfileIds != null && request.ProfileIds.Any()) && allProfileIds.Count == 0)
+        {
+            throw new ValidationException(new[] { new ValidationFailure(nameof(request.ProfileIds), $"The following ProfileIds were not found in database: {string.Join(", ", request.ProfileIds)}") });
+        }
+
+        if ((request.ProfileIds != null && request.ProfileIds.Any()) && (!request.ProfileIds.All(p => allProfileIds.Contains(p))))
+        {
+            var notExist = request.ProfileIds.Where(p => !allProfileIds.Contains(p));
+            throw new ValidationException(new[] { new ValidationFailure(nameof(request.ProfileIds), $"The following ProfileIds were not found in database: {string.Join(", ", notExist)}") });
+        }
+    }
+
+    private static void ValidateOdsInstanceIds(Request request, IUsersContext db)
+    {
+        var allOdsInstanceIds = db.OdsInstances.Select(p => p.OdsInstanceId).ToList();
+
+        if ((request.OdsInstanceIds != null && request.OdsInstanceIds.Any()) && allOdsInstanceIds.Count == 0)
+        {
+            throw new ValidationException(new[] { new ValidationFailure(nameof(request.OdsInstanceIds), $"The following OdsInstanceIds were not found in database: {string.Join(", ", request.OdsInstanceIds)}") });
+        }
+
+        if ((request.OdsInstanceIds != null && request.OdsInstanceIds.Any()) && (!request.OdsInstanceIds.All(p => allOdsInstanceIds.Contains(p))))
+        {
+            var notExist = request.OdsInstanceIds.Where(p => !allOdsInstanceIds.Contains(p));
+            throw new ValidationException(new[] { new ValidationFailure(nameof(request.OdsInstanceIds), $"The following OdsInstanceIds were not found in database: {string.Join(", ", notExist)}") });
+        }
     }
 
     [SwaggerSchema(Title = "AddApplicationRequest")]
@@ -49,7 +83,7 @@ public class AddApplication : IFeature
         [SwaggerSchema(Description = FeatureConstants.ApplicationNameDescription, Nullable = false)]
         public string? ApplicationName { get; set; }
 
-        [SwaggerSchema(Description = FeatureConstants.VedorIdDescription, Nullable = false)]
+        [SwaggerSchema(Description = FeatureConstants.VendorIdDescription, Nullable = false)]
         public int VendorId { get; set; }
 
         [SwaggerSchema(Description = FeatureConstants.ClaimSetNameDescription, Nullable = false)]
@@ -57,10 +91,13 @@ public class AddApplication : IFeature
 
         [SwaggerOptional]
         [SwaggerSchema(Description = FeatureConstants.ProfileIdDescription)]
-        public int? ProfileId { get; set; }
+        public IEnumerable<int>? ProfileIds { get; set; }
 
         [SwaggerSchema(Description = FeatureConstants.EducationOrganizationIdsDescription, Nullable = false)]
-        public IEnumerable<int>? EducationOrganizationIds { get; set; }
+        public IEnumerable<long>? EducationOrganizationIds { get; set; }
+
+        [SwaggerSchema(Description = FeatureConstants.OdsInstanceIdsDescription, Nullable = false)]
+        public IEnumerable<int>? OdsInstanceIds { get; set; }
     }
 
     public class Validator : AbstractValidator<Request>
@@ -82,6 +119,10 @@ public class AddApplication : IFeature
             RuleFor(m => m.EducationOrganizationIds)
                 .NotEmpty()
                 .WithMessage(FeatureConstants.EdOrgIdsValidationMessage);
+
+            RuleFor(m => m.OdsInstanceIds)
+                .NotEmpty()
+                .WithMessage(FeatureConstants.OdsInstanceIdsValidationMessage);
 
             RuleFor(m => m.VendorId).Must(id => id > 0).WithMessage(FeatureConstants.VendorIdValidationMessage);
         }

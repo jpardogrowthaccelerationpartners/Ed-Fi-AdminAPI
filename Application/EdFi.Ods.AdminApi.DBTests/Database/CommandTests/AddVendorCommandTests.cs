@@ -9,8 +9,8 @@ using Moq;
 using NUnit.Framework;
 using Shouldly;
 using System.Linq;
-using EdFi.Ods.AdminApi.Infrastructure.Helpers;
 using Microsoft.EntityFrameworkCore;
+using EdFi.Ods.AdminApi.Infrastructure.Helpers;
 
 namespace EdFi.Ods.AdminApi.DBTests.Database.CommandTests;
 
@@ -38,9 +38,8 @@ public class AddVendorCommandTests : PlatformUsersContextTestBase
         Transaction(usersContext =>
         {
             var vendor = usersContext.Vendors
-            .Include(x => x.VendorNamespacePrefixes)
-            .Include(x => x.Users)
-            .Single(v => v.VendorId == id);
+            .Include(v => v.VendorNamespacePrefixes)
+            .Include(v => v.Users).Single(v => v.VendorId == id);
             vendor.VendorName.ShouldBe("test vendor");
             vendor.VendorNamespacePrefixes.First().NamespacePrefix.ShouldBe("http://www.test.com/");
             vendor.Users.Single().FullName.ShouldBe("test user");
@@ -75,8 +74,8 @@ public class AddVendorCommandTests : PlatformUsersContextTestBase
         Transaction(usersContext =>
         {
             var vendor = usersContext.Vendors
-           .Include(x => x.VendorNamespacePrefixes)
-           .Include(x => x.Users).Single(v => v.VendorId == id);
+            .Include(v => v.VendorNamespacePrefixes)
+            .Include(v => v.Users).Single(v => v.VendorId == id);
             vendor.VendorName.ShouldBe("test vendor");
             vendor.VendorNamespacePrefixes.Select(x => x.NamespacePrefix).ShouldBe(namespacePrefixes);
             vendor.Users.Single().FullName.ShouldBe("test user");
@@ -107,10 +106,10 @@ public class AddVendorCommandTests : PlatformUsersContextTestBase
 
         Transaction(usersContext =>
         {
-            var vendor = usersContext.Vendors.
-            Include(x => x.VendorNamespacePrefixes)
-           .Include(x => x.Users)
-           .Single(v => v.VendorId == id);
+            var vendor = usersContext.Vendors
+            .Include(v => v.VendorNamespacePrefixes)
+            .Include(v => v.Users)
+            .Single(v => v.VendorId == id);
             vendor.VendorName.ShouldBe("test vendor");
             vendor.VendorNamespacePrefixes.Select(x => x.NamespacePrefix).ToDelimiterSeparated().ShouldBe(expectedNamespacePrefixes);
             vendor.Users.Single().FullName.ShouldBe("test user");

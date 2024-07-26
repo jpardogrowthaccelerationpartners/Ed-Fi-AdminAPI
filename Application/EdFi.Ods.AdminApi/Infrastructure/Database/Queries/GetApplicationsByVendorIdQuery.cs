@@ -5,6 +5,7 @@
 
 using EdFi.Admin.DataAccess.Contexts;
 using EdFi.Admin.DataAccess.Models;
+using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
 using Microsoft.EntityFrameworkCore;
 
 namespace EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
@@ -21,9 +22,9 @@ public class GetApplicationsByVendorIdQuery
     public List<Application> Execute(int vendorid)
     {
         var applications = _context.Applications
-            .Include(x=> x.Profiles)
-            .Include(x => x.ApplicationEducationOrganizations)
-            .Include(x => x.Vendor)
+            .Include(a => a.ApplicationEducationOrganizations)
+            .Include(a => a.Profiles)
+            .Include(a => a.Vendor)
             .Where(a => a.Vendor != null && a.Vendor.VendorId == vendorid)
             .ToList();
 

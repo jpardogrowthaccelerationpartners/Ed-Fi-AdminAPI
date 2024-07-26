@@ -3,18 +3,21 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace EdFi.Ods.AdminApi.Infrastructure.Services.ClaimSetEditor;
+namespace EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
 
 public interface IClaimSetResourceClaimActionAuthStrategies
 {
-    IList<AuthorizationStrategy?> AuthorizationStrategies { get; }
+    int? ActionId { get; }
+    string? ActionName { get; }
+    IEnumerable<AuthorizationStrategy>? AuthorizationStrategies { get; }
 }
 
 [SwaggerSchema(Title = "ClaimSetResourceClaimActionAuthorizationStrategies")]
 public class ClaimSetResourceClaimActionAuthStrategies : IClaimSetResourceClaimActionAuthStrategies
 {
-    public IList<AuthorizationStrategy?> AuthorizationStrategies { get; set; } = new List<AuthorizationStrategy?>();
+    public int? ActionId { get; set; }
+    public string? ActionName { get; set; }
+    public IEnumerable<AuthorizationStrategy>? AuthorizationStrategies { get; set; }
 }

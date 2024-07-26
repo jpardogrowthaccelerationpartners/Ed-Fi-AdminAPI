@@ -46,7 +46,6 @@ public class RequestLoggingMiddleware
                     var validationResponse = new
                     {
                         title = "Validation failed",
-                        status = (int)HttpStatusCode.BadRequest,
                         errors = new Dictionary<string, List<string>>()
                     };
 
@@ -59,7 +58,9 @@ public class RequestLoggingMiddleware
                         validationResponse.errors[x.PropertyName].Add(x.ErrorMessage.Replace("\u0027", "'"));
                     });
 
+#pragma warning disable S6667 // Logging in a catch clause should pass the caught exception as a parameter.
                     logger.LogDebug(JsonSerializer.Serialize(new { message = validationResponse, traceId = context.TraceIdentifier }));
+#pragma warning restore S6667 // Logging in a catch clause should pass the caught exception as a parameter.
 
                     response.StatusCode = (int)HttpStatusCode.BadRequest;
                     await response.WriteAsync(JsonSerializer.Serialize(validationResponse));
@@ -69,7 +70,6 @@ public class RequestLoggingMiddleware
                     var notFoundResponse = new
                     {
                         title = notFoundException.Message,
-                        status = (int)HttpStatusCode.NotFound
                     };
                     logger.LogDebug(JsonSerializer.Serialize(new { message = notFoundResponse, traceId = context.TraceIdentifier }));
 
@@ -78,14 +78,17 @@ public class RequestLoggingMiddleware
                     break;
 
                 case IAdminApiException adminApiException:
+                    var message = adminApiException.StatusCode.HasValue && !string.IsNullOrWhiteSpace(adminApiException.Message)
+                        ? adminApiException.Message
+                        : "The server encountered an unexpected condition that prevented it from fulfilling the request.";
                     logger.LogError(JsonSerializer.Serialize(new { message = "An uncaught error has occurred", error = new { ex.Message, ex.StackTrace }, traceId = context.TraceIdentifier }));
                     response.StatusCode = adminApiException.StatusCode.HasValue ? (int)adminApiException.StatusCode : 500;
-                    await response.WriteAsync(JsonSerializer.Serialize(new { message = "The server encountered an unexpected condition that prevented it from fulfilling the request." }));
+                    await response.WriteAsync(JsonSerializer.Serialize(new { message = message }));
                     break;
 
                 default:
-                    response.StatusCode = (int)HttpStatusCode.InternalServerError;
                     logger.LogError(JsonSerializer.Serialize(new { message = "An uncaught error has occurred", error = new { ex.Message, ex.StackTrace }, traceId = context.TraceIdentifier }));
+                    response.StatusCode = (int)HttpStatusCode.InternalServerError;
                     await response.WriteAsync(JsonSerializer.Serialize(new { message = "The server encountered an unexpected condition that prevented it from fulfilling the request." }));
                     break;
             }

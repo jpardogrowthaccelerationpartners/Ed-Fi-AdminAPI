@@ -9,27 +9,22 @@ public static class AuthorizationStrategiesExtension
 {
     public static AuthorizationStrategy? Create(this AuthorizationStrategy?[] authorizationStrategies)
     {
-        return authorizationStrategies.Length > 0 ? authorizationStrategies[0] : null;
+        return authorizationStrategies[0];
     }
 
     public static AuthorizationStrategy? Read(this AuthorizationStrategy?[] authorizationStrategies)
     {
-        return authorizationStrategies.Length > 1 ? authorizationStrategies[1] : null;
+        return authorizationStrategies[1];
     }
 
     public static AuthorizationStrategy? Update(this AuthorizationStrategy?[] authorizationStrategies)
     {
-        return authorizationStrategies.Length > 2 ? authorizationStrategies[2] : null;
+        return authorizationStrategies[2];
     }
 
     public static AuthorizationStrategy? Delete(this AuthorizationStrategy?[] authorizationStrategies)
     {
-        return authorizationStrategies.Length > 3 ? authorizationStrategies[3] : null;
-    }
-
-    public static AuthorizationStrategy? ReadChanges(this AuthorizationStrategy?[] authorizationStrategies)
-    {
-        return authorizationStrategies.Length > 4 ? authorizationStrategies[4] : null;
+        return authorizationStrategies[3];
     }
 
     public static AuthorizationStrategy?[] AddAuthorizationStrategyOverrides(this AuthorizationStrategy?[] authorizationStrategies,
@@ -43,9 +38,7 @@ public static class AuthorizationStrategiesExtension
             authorizationStrategies[2] = strategy;
         else if (actionName == Action.Delete.Value)
             authorizationStrategies[3] = strategy;
-        else if (actionName == Action.ReadChanges.Value)
-            authorizationStrategies[4] = strategy;
 
         return authorizationStrategies;
-    }   
+    }
 }

@@ -18,12 +18,12 @@
 > [!NOTE]
 > The "EdFi.Ods.AdminApi" application folder and "Nuget.config" file will be
 > copied over, either manually or through the execution of a script(`build.ps1
-> -Command "CopyApplicationFilesToDockerContext"`), to the "Application" folder
+> -Command "CopyToDockerContext"`), to the "Application" folder
 > within the "Docker" directory. 
 
 ## Non-development environments
 
-1. Dockerfile
+1. api.Dockerfile
 
     File for setting up Admin API docker image with assets and dlls sourced from
     "EdFi.Suite3.ODS.AdminApi" nuget package(from

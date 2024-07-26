@@ -3,8 +3,6 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using System;
-using System.Linq;
 using EdFi.Admin.DataAccess.Contexts;
 using EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
 using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
@@ -26,13 +24,14 @@ public class DeleteVendorCommand
     public void Execute(int id)
     {
         var vendor = _context.Vendors
-            .Include(x => x.Applications)
-            .Include(x => x.Users)
+            .Include(v => v.Applications)
+            .Include(v => v.VendorNamespacePrefixes)
+            .Include(v => v.Users)
             .SingleOrDefault(v => v.VendorId == id) ?? throw new NotFoundException<int>("vendor", id);
 
         if (vendor.IsSystemReservedVendor())
         {
-            throw new Exception("This Vendor is required for proper system function and may not be deleted");
+            throw new ArgumentException("This Vendor is required for proper system function and may not be deleted");
         }
 
         foreach (var application in vendor.Applications.ToList())
@@ -42,6 +41,16 @@ public class DeleteVendorCommand
 
         foreach (var user in vendor.Users.ToList())
         {
+            if (_context.ApiClients.Any())
+            {
+                var apiClient =
+                _context.ApiClients
+                .AsEnumerable().SingleOrDefault(o => o.User?.UserId == user?.UserId);
+                if (apiClient != null)
+                {
+                    _context.ApiClients.Remove(apiClient);
+                }
+            }
             _context.Users.Remove(user);
         }
 

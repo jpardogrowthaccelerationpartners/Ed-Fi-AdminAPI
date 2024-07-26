@@ -26,8 +26,9 @@ public class GetVendorByIdQuery : IGetVendorByIdQuery
     public Vendor? Execute(int vendorId)
     {
         return _context.Vendors
-            .Include(x => x.VendorNamespacePrefixes)
-            .Include(x => x.Users)
+            .Include(v => v.Users)
+            .Include(v => v.VendorNamespacePrefixes)
+            .Include(v => v.Applications)
             .SingleOrDefault(v => v.VendorId == vendorId);
     }
 }

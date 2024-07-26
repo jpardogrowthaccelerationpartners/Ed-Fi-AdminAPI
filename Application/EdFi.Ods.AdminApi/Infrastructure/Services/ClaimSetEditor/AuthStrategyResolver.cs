@@ -23,55 +23,28 @@ public class AuthStrategyResolver : IAuthStrategyResolver
 
     public IEnumerable<ResourceClaim> ResolveAuthStrategies(IEnumerable<ResourceClaim> resourceClaims)
     {
-        var dbAuthStrategies = _securityContext.AuthorizationStrategies;
+        var dbAuthStrategies = _securityContext.AuthorizationStrategies.ToList();
 
         foreach (var claim in resourceClaims)
         {
-            if (claim.DefaultAuthStrategiesForCRUD != null && claim.DefaultAuthStrategiesForCRUD.Any())
+            if (claim.AuthorizationStrategyOverridesForCRUD != null && claim.AuthorizationStrategyOverridesForCRUD.Any())
             {
-                foreach (var claimSetResourceClaimActionAuthStrategyItem in claim.DefaultAuthStrategiesForCRUD.Where(x => x != null))
+                foreach (var authStrategyOverride in claim.AuthorizationStrategyOverridesForCRUD.Where(x => x != null))
                 {
-                    if (claimSetResourceClaimActionAuthStrategyItem != null && claimSetResourceClaimActionAuthStrategyItem.AuthorizationStrategies != null)
+                    if (authStrategyOverride is null) continue;
+                    if (authStrategyOverride.AuthorizationStrategies != null)
                     {
-                        foreach (var authorizationStrategyItem in claimSetResourceClaimActionAuthStrategyItem.AuthorizationStrategies)
+                        foreach (var strategy in authStrategyOverride.AuthorizationStrategies)
                         {
-                            if (authorizationStrategyItem is null) continue;
-
-                            var authStrategy = dbAuthStrategies.AsEnumerable().SingleOrDefault(
+                            var authStrategy = dbAuthStrategies.SingleOrDefault(
                             x => x.AuthorizationStrategyName.Equals(
-                                authorizationStrategyItem.AuthStrategyName, StringComparison.InvariantCultureIgnoreCase));
+                                strategy.AuthStrategyName,
+                                StringComparison.InvariantCultureIgnoreCase));
 
                             if (authStrategy != null)
                             {
-                                authorizationStrategyItem.AuthStrategyId = authStrategy.AuthorizationStrategyId;
-                                authorizationStrategyItem.DisplayName = authStrategy.DisplayName;
-                            }
-                        }
-                    }
-
-                    
-                }
-            }
-
-            if (claim.AuthStrategyOverridesForCRUD != null && claim.AuthStrategyOverridesForCRUD.Any())
-            {
-                foreach (var authStrategyOverride in claim.AuthStrategyOverridesForCRUD.Where(x => x != null))
-                {
-                    if (authStrategyOverride != null && authStrategyOverride.AuthorizationStrategies != null)
-                    {
-                        foreach (var authorizationStrategyItem in authStrategyOverride.AuthorizationStrategies)
-                        {
-                            if (authorizationStrategyItem is null) continue;
-
-                            var authStrategy = dbAuthStrategies.AsEnumerable().SingleOrDefault(
-                                x => x.AuthorizationStrategyName.Equals(
-                                    authorizationStrategyItem.AuthStrategyName,
-                                    StringComparison.InvariantCultureIgnoreCase));
-
-                            if (authStrategy != null)
-                            {
-                                authorizationStrategyItem.AuthStrategyId = authStrategy.AuthorizationStrategyId;
-                                authorizationStrategyItem.DisplayName = authStrategy.DisplayName;
+                                strategy.AuthStrategyId = authStrategy.AuthorizationStrategyId;
+                                strategy.AuthStrategyName = authStrategy.AuthorizationStrategyName;
                             }
                         }
                     }

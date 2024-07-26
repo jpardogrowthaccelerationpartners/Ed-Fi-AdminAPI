@@ -16,13 +16,13 @@ public class ResetApplicationCredentials : IFeature
         AdminApiEndpointBuilder.MapPut(endpoints, "/applications/{id}/reset-credential", HandleResetCredentials)
             .WithDescription("Reset application credentials. Returns new key and secret.")
             .WithRouteOptions(b => b.WithResponse<ApplicationResult>(200))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
     public async Task<IResult> HandleResetCredentials(RegenerateApiClientSecretCommand resetSecretCommand, IMapper mapper, int id)
     {
         var resetApplicationSecret = await Task.Run(() => resetSecretCommand.Execute(id));
         var model = mapper.Map<ApplicationResult>(resetApplicationSecret);
-        return AdminApiResponse<ApplicationResult>.Updated(model, "Application secret");
+        return Results.Ok(model);
     }
 }

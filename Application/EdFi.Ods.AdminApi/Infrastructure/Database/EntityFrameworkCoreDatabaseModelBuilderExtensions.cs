@@ -3,7 +3,6 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -20,7 +19,8 @@ public static class EntityFrameworkCoreDatabaseModelBuilderExtensions
 
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
-            if (entity is null) throw new InvalidOperationException("Entity should not be null");
+            if (entity is null)
+                throw new InvalidOperationException("Entity should not be null");
             var tableName = entity.GetTableName() ?? throw new InvalidOperationException($"Entity of type {entity.GetType()} has a null table name");
 
             entity.SetTableName(tableName.ToLowerInvariant());
@@ -29,7 +29,7 @@ public static class EntityFrameworkCoreDatabaseModelBuilderExtensions
             {
                 var tableId = StoreObjectIdentifier.Table(tableName);
                 var columnName = property.GetColumnName(tableId) ?? property.GetDefaultColumnName(tableId);
-                property.SetColumnName(columnName.ToLowerInvariant());
+                property.SetColumnName(columnName?.ToLowerInvariant());
             }
 
             foreach (var key in entity.GetKeys())

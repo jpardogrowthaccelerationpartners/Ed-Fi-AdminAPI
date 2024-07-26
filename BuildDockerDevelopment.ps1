@@ -17,14 +17,13 @@
 #>
 
 $p = @{
-        ProductionApiUrl = "http://api"
-        AppStartup = "OnPrem"
-        ApiStartupType = "SharedInstance"
-        DatabaseEngine = "PostgreSql"
-        PathBase = "adminapi"
-        EncryptionKey = "<Generated encryption key>"
-        AdminDB = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Admin;Application Name=EdFi.Ods.AdminApi;"
-        SecurityDB = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Security;Application Name=EdFi.Ods.AdminApi;"
-    }
+    Authority        = "http://api"
+    IssuerUrl        = "https://localhost:5001"
+    DatabaseEngine   = "PostgreSql"
+    PathBase         = "adminapi"
+    SigningKey       = "<Generated encryption key>"
+    AdminDB          = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Admin;Application Name=EdFi.Ods.AdminApi;"
+    SecurityDB       = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Security;Application Name=EdFi.Ods.AdminApi;"
+}
 
-.\build.ps1 -APIVersion "1.2.2" -Configuration Release -DockerEnvValues $p -Command BuildAndDeployToAdminApiDockerContainer
+.\build.ps1 -APIVersion "2.2.0" -Configuration Release -DockerEnvValues $p -Command BuildAndDeployToAdminApiDockerContainer

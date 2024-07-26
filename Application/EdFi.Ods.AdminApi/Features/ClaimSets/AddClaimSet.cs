@@ -7,10 +7,7 @@ using AutoMapper;
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.ClaimSetEditor;
 using EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
-using EdFi.Ods.AdminApi.Infrastructure.JsonContractResolvers;
-using EdFi.Ods.AdminApi.Infrastructure.Services.ClaimSetEditor;
 using FluentValidation;
-using Newtonsoft.Json;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace EdFi.Ods.AdminApi.Features.ClaimSets;
@@ -19,10 +16,10 @@ public class AddClaimSet : IFeature
 {
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        AdminApiEndpointBuilder.MapPost(endpoints, "/claimsets", Handle)
+        AdminApiEndpointBuilder.MapPost(endpoints, "/claimSets", Handle)
         .WithDefaultDescription()
-        .WithRouteOptions(b => b.WithResponse<ClaimSetDetailsModel>(201))
-        .BuildForVersions(AdminApiVersions.V1);
+        .WithRouteOptions(b => b.WithResponseCode(201))
+        .BuildForVersions(AdminApiVersions.V2);
     }
 
     public async Task<IResult> Handle(Validator validator, AddClaimSetCommand addClaimSetCommand,
@@ -31,9 +28,8 @@ public class AddClaimSet : IFeature
         IGetResourcesByClaimSetIdQuery getResourcesByClaimSetIdQuery,
         IGetApplicationsByClaimSetIdQuery getApplications,
         IAuthStrategyResolver strategyResolver,
-        IOdsSecurityModelVersionResolver odsSecurityModelResolver,
         IMapper mapper,
-        Request request)
+        AddClaimSetRequest request)
     {
         await validator.GuardAsync(request);
         var addedClaimSetId = addClaimSetCommand.Execute(new AddClaimSetModel
@@ -41,59 +37,23 @@ public class AddClaimSet : IFeature
             ClaimSetName = request.Name ?? string.Empty
         });
 
-        var resourceClaims = mapper.Map<List<ResourceClaim>>(request.ResourceClaims);
-        
-        var resolvedResourceClaims = strategyResolver.ResolveAuthStrategies(resourceClaims).ToList();
-
-        addOrEditResourcesOnClaimSetCommand.Execute(addedClaimSetId, resolvedResourceClaims);
-
-        var claimSet = getClaimSetByIdQuery.Execute(addedClaimSetId);
-
-        var model = mapper.Map<ClaimSetDetailsModel>(claimSet);
-        model.ApplicationsCount = getApplications.ExecuteCount(addedClaimSetId);
-        model.ResourceClaims = getResourcesByClaimSetIdQuery.AllResources(addedClaimSetId)
-            .Select(r => mapper.Map<ResourceClaimModel>(r)).ToList();
-
-
-        return AdminApiResponse<ClaimSetDetailsModel>.Created(
-            model,
-            "ClaimSet",
-            $"/claimsets/{addedClaimSetId}",
-            new JsonSerializerSettings()
-            {
-                Formatting = Formatting.Indented,
-                ContractResolver = new ShouldSerializeContractResolver(odsSecurityModelResolver)
-            }
-            );
+        return Results.Created($"/claimSets/{addedClaimSetId}", null);
     }
 
     [SwaggerSchema(Title = "AddClaimSetRequest")]
-    public class Request
+    public class AddClaimSetRequest
     {
         [SwaggerSchema(Description = FeatureConstants.ClaimSetNameDescription, Nullable = false)]
         public string? Name { get; set; }
-
-        [SwaggerSchema(Description = FeatureConstants.ResourceClaimsDescription, Nullable = false)]
-        public List<RequestResourceClaimModel>? ResourceClaims { get; set; }
     }
 
-    public class Validator : AbstractValidator<Request>
+    public class Validator : AbstractValidator<AddClaimSetRequest>
     {
         private readonly IGetAllClaimSetsQuery _getAllClaimSetsQuery;
 
-        public Validator(IGetAllClaimSetsQuery getAllClaimSetsQuery,
-            IGetResourceClaimsAsFlatListQuery getResourceClaimsAsFlatListQuery,
-            IGetAllAuthorizationStrategiesQuery getAllAuthorizationStrategiesQuery,
-            IOdsSecurityModelVersionResolver resolver,
-            IMapper mapper)
+        public Validator(IGetAllClaimSetsQuery getAllClaimSetsQuery)
         {
             _getAllClaimSetsQuery = getAllClaimSetsQuery;
-
-            var resourceClaims = (Lookup<string, ResourceClaim>)getResourceClaimsAsFlatListQuery.Execute()
-                .ToLookup(rc => rc.Name?.ToLower());
-
-            var authStrategyNames = getAllAuthorizationStrategiesQuery.Execute()
-                .Select(a => a.AuthStrategyName).ToList();
 
             RuleFor(m => m.Name).NotEmpty()
                 .Must(BeAUniqueName)
@@ -102,20 +62,6 @@ public class AddClaimSet : IFeature
             RuleFor(m => m.Name)
                 .MaximumLength(255)
                 .WithMessage(FeatureConstants.ClaimSetNameMaxLengthMessage);
-
-            RuleFor(m => m).Custom((claimSet, context) =>
-            {
-                var resourceClaimValidator = new ResourceClaimValidator(resolver);
-
-                if (claimSet.ResourceClaims != null && claimSet.ResourceClaims.Any())
-                {
-                    foreach (var resourceClaim in claimSet.ResourceClaims)
-                    {
-                        resourceClaimValidator.Validate(resourceClaims, authStrategyNames,
-                            resourceClaim, mapper.Map<List<ChildrenRequestResourceClaimModel>>(claimSet.ResourceClaims), context, claimSet.Name);
-                    }
-                }
-            });
         }
 
         private bool BeAUniqueName(string? name)

@@ -3,13 +3,19 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
-using System.Linq;
 using EdFi.Admin.DataAccess.Contexts;
 using EdFi.Admin.DataAccess.Models;
+using EdFi.Ods.AdminApi.Infrastructure.ErrorHandling;
+using Microsoft.EntityFrameworkCore;
 
 namespace EdFi.Ods.AdminApi.Infrastructure.Database.Queries;
 
-public class GetOdsInstanceQuery
+public interface IGetOdsInstanceQuery
+{
+    OdsInstance Execute(int odsInstanceId);
+}
+
+public class GetOdsInstanceQuery : IGetOdsInstanceQuery
 {
     private readonly IUsersContext _usersContext;
 
@@ -18,8 +24,11 @@ public class GetOdsInstanceQuery
         _usersContext = userContext;
     }
 
-    public OdsInstance? Execute(string instanceName)
+    public OdsInstance Execute(int odsInstanceId)
     {
-        return _usersContext.OdsInstances.SingleOrDefault(i => i.Name == instanceName);
+        return _usersContext.OdsInstances
+            .Include(p => p.OdsInstanceContexts)
+            .Include(p => p.OdsInstanceDerivatives)
+            .SingleOrDefault(odsInstance => odsInstance.OdsInstanceId == odsInstanceId) ?? throw new NotFoundException<int>("odsInstance", odsInstanceId);
     }
 }

@@ -48,33 +48,30 @@
 
     .EXAMPLE
        $p = @{
-            ProductionApiUrl = "http://api"
-            AppStartup = "OnPrem"
-            XsdFolder = "/app/Schema"
-            ApiStartupType = "SharedInstance"
-            DatabaseEngine = "PostgreSql"
-            BulkUploadHashCache = "/app/BulkUploadHashCache/"
-            EncryptionKey = "<Generated encryption key>"
-            AdminDB = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Admin;Application Name=EdFi.Ods.AdminApi;"
-            SecurityDB = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Security;Application Name=EdFi.Ods.AdminApi;"
+            Authority        = "http://api"
+            IssuerUrl        = "https://localhost:5001"
+            DatabaseEngine   = "PostgreSql"
+            PathBase         = "adminapi"
+            SigningKey       = "<Generated encryption key>"
+            AdminDB          = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Admin;Application Name=EdFi.Ods.AdminApi;"
+            SecurityDB       = "host=db-admin;port=5432;username=username;password=password;database=EdFi_Security;Application Name=EdFi.Ods.AdminApi;"
         }
 
-        .\build.ps1 -APIVersion "1.2.2" -Configuration Release -DockerEnvValues $p -Command BuildAndDeployToAdminApiDockerContainer
+        .\build.ps1 -APIVersion "2.2.0" -Configuration Release -DockerEnvValues $p -Command BuildAndDeployToAdminApiDockerContainer
 #>
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'False positive')]
 param(
     # Command to execute, defaults to "Build".
     [string]
-    [ValidateSet("Clean", "Build", "BuildAndPublish", "UnitTest", "IntegrationTest",  "PackageApi"
-    , "Push", "BuildAndTest", "BuildAndDeployToAdminApiDockerContainer"
-    , "BuildAndRunAdminApiDevDocker", "RunAdminApiDevDockerContainer", "RunAdminApiDevDockerCompose", "Run",
-    "CopyApplicationFilesToDockerContext", "RemoveApplicationFilesFromDockerContext")]
+    [ValidateSet("Clean", "Build", "BuildAndPublish", "UnitTest", "IntegrationTest", "PackageApi"
+        , "Push", "BuildAndTest", "BuildAndDeployToAdminApiDockerContainer"
+        , "BuildAndRunAdminApiDevDocker", "RunAdminApiDevDockerContainer", "RunAdminApiDevDockerCompose", "Run", "CopyToDockerContext", "RemoveDockerContextFiles")]
     $Command = "Build",
 
     # Assembly and package version number for Admin API. The current package number is
     # configured in the build automation tool and passed to this script.
     [string]
-    $APIVersion = "1.2.2",
+    $APIVersion = "0.1",
 
     # .NET project build configuration, defaults to "Debug". Options are: Debug, Release.
     [string]
@@ -119,14 +116,9 @@ $dockerRoot = "$PSScriptRoot/Docker"
 
 $supportedApiVersions = @(
     @{
-        OdsPackageName = "EdFi.RestApi.Databases.EFA"
-        OdsVersion = "3.4.0"
-        Prerelease = $false
-    },
-    @{
-        OdsPackageName = "EdFi.Suite3.RestApi.Databases"
-        OdsVersion = "5.3.659"
-        Prerelease = $false
+        OdsPackageName = "EdFi.Suite3.RestApi.Databases.Standard.5.0.0"
+        OdsVersion     = "7.1.1192"
+        Prerelease     = $false
     }
 )
 $maintainers = "Ed-Fi Alliance, LLC and contributors"
@@ -225,11 +217,11 @@ function ResetTestDatabases {
 
     Invoke-Execute {
         $arguments = @{
-            RestApiPackageVersion = $OdsVersion
-            RestApiPackageName = $OdsPackageName
-            UseIntegratedSecurity = $true
+            RestApiPackageVersion    = $OdsVersion
+            RestApiPackageName       = $OdsPackageName
+            UseIntegratedSecurity    = $true
             RestApiPackagePrerelease = $Prerelease
-            NuGetFeed = $EdFiNuGetFeed
+            NuGetFeed                = $EdFiNuGetFeed
         }
 
         Invoke-PrepareDatabasesForTesting @arguments
@@ -255,7 +247,9 @@ function RunNuGetPack {
     # NU5100 is the warning about DLLs outside of a "lib" folder. We're
     # deliberately using that pattern, therefore we don't care about the
     # warning.
-    dotnet pack $ProjectPath --output $PSScriptRoot -p:NuspecFile=$nuspecPath -p:NuspecProperties="version=$PackageVersion" /p:NoWarn=NU5100
+    # NU5110 is the warning about ps1 files outside the "tools" folder
+    # NU5111 is a warning about an unrecognized ps1 filename
+    dotnet pack $ProjectPath --output $PSScriptRoot -p:NuspecFile=$nuspecPath -p:NuspecProperties="version=$PackageVersion" /p:NoWarn='"NU5100;NU5110;NU5111"'
 }
 
 function NewDevCertificate {
@@ -276,10 +270,10 @@ function AddAppCommonPackageForInstaller {
     $destinationPath = "$mainPath/publish"
 
     $arguments = @{
-        AppCommonPackageName = $appCommonPackageName
+        AppCommonPackageName    = $appCommonPackageName
         AppCommonPackageVersion = $appCommonPackageVersion
-        NuGetFeed = $EdFiNuGetFeed
-        DestinationPath = $destinationPath
+        NuGetFeed               = $EdFiNuGetFeed
+        DestinationPath         = $destinationPath
     }
 
     Add-AppCommon @arguments
@@ -321,8 +315,8 @@ function Invoke-Run {
 
     if ([string]::IsNullOrEmpty($LaunchProfile)) {
         Write-Error "LaunchProfile parameter is required for running Admin Api. Please " +
-                    "specify the LaunchProfile parameter. Valid values include ""EdFi.Ods.AdminApi (Dev)""" +
-                    ", ""EdFi.Ods.AdminApi (Prod)"", ""EdFi.Ods.AdminApi (Docker)"", and ""IIS Express"""
+        "specify the LaunchProfile parameter. Valid values include ""EdFi.Ods.AdminApi (Dev)""" +
+        ", ""EdFi.Ods.AdminApi (Prod)"", ""EdFi.Ods.AdminApi (Docker)"", and ""IIS Express"""
     }
     else {
         Invoke-Execute { dotnet run --project $projectFilePath --launch-profile $LaunchProfile }
@@ -345,9 +339,9 @@ function Invoke-IntegrationTestSuite {
 
         Invoke-Step {
             $arguments = @{
-                OdsVersion = $_.OdsVersion
+                OdsVersion     = $_.OdsVersion
                 OdsPackageName = $_.OdsPackageName
-                Prerelease = $_.Prerelease
+                Prerelease     = $_.Prerelease
             }
             ResetTestDatabases @arguments
         }
@@ -369,17 +363,15 @@ function Invoke-BuildDatabasePackage {
 function UpdateAppSettingsForAdminApiDocker {
     $filePath = "$solutionRoot/EdFi.Ods.AdminApi/appsettings.json"
     $json = (Get-Content -Path $filePath) | ConvertFrom-Json
-    $json.AppSettings.ProductionApiUrl = $DockerEnvValues["ProductionApiUrl"]
-    $json.AppSettings.ApiStartupType = $DockerEnvValues["ApiStartupType"]
     $json.AppSettings.DatabaseEngine = $DockerEnvValues["DatabaseEngine"]
     $json.AppSettings.PathBase = $DockerEnvValues["PathBase"]
 
     $json.Authentication.IssuerUrl = $DockerEnvValues["IssuerUrl"]
     $json.Authentication.SigningKey = $DockerEnvValues["SigningKey"]
 
-    $json.ConnectionStrings.Admin = $DockerEnvValues["AdminDB"]
-    $json.ConnectionStrings.Security = $DockerEnvValues["SecurityDB"]
-    $json.Log4NetCore.Log4NetConfigFileName =  "./log4net.config"
+    $json.ConnectionStrings.EdFi_Admin = $DockerEnvValues["AdminDB"]
+    $json.ConnectionStrings.EdFi_Security = $DockerEnvValues["SecurityDB"]
+    $json.Log4NetCore.Log4NetConfigFileName = "./log4net.config"
     $json | ConvertTo-Json -Depth 10 | Set-Content $filePath
 }
 
@@ -416,58 +408,62 @@ function PushPackage {
     $arguments = @{
         PackageFile = $PackageFile
         NuGetApiKey = $NuGetApiKey
-        NuGetFeed = $EdFiNuGetFeed
+        NuGetFeed   = $EdFiNuGetFeed
     }
 
     Invoke-Execute { Push-Package @arguments }
 }
-
 function Invoke-AdminApiDockerDeploy {
-   Invoke-Step { UpdateAppSettingsForAdminApiDocker }
-   Invoke-Step { CopyLatestFilesToAdminApiContainer }
-   Invoke-Step { RestartAdminApiContainer }
+    Invoke-Step { UpdateAppSettingsForAdminApiDocker }
+    Invoke-Step { CopyLatestFilesToAdminApiContainer }
+    Invoke-Step { RestartAdminApiContainer }
 }
 
 function Invoke-BuildAdminApiDevDockerImage {
-   Invoke-Step { BuildAdminApiDevDockerImage }
+    Invoke-Step { BuildAdminApiDevDockerImage }
 }
 
 function Invoke-RunAdminApiDevDockerContainer {
-   Invoke-Step { RunAdminApiDevDockerContainer }
+    Invoke-Step { RunAdminApiDevDockerContainer }
 }
 
 function Invoke-RunAdminApiDevDockerCompose {
-   Invoke-Step { RunAdminApiDevDockerCompose }
+    Invoke-Step { RunAdminApiDevDockerCompose }
 }
 
 function Invoke-PushPackage {
     Invoke-Step { PushPackage }
 }
 
-function CopyApplicationFilesToDockerContext {
-	New-Item -Path "$dockerRoot/Application" -ItemType Directory
-	Copy-Item -Path "$solutionRoot/EdFi.Ods.AdminApi/" -Destination "$dockerRoot/Application/" -Recurse
-	Copy-Item -Path "$solutionRoot/NuGet.Config" -Destination "$dockerRoot/Application/" -Recurse
+function CopyTempFilesToDockerContext {
+    New-Item -Path "$dockerRoot/Application" -ItemType Directory
+
+    $sourceAdminApi = "$solutionRoot/EdFi.Ods.AdminApi/"
+    $destinationAdminApi = "$dockerRoot/Application/"
+    Copy-Item -Path $sourceAdminApi -Destination $destinationAdminApi -Recurse
+
+    $sourceNugetConfig = "$solutionRoot/NuGet.Config"
+    $destinationNugetConfig = "$dockerRoot/Application/"
+    Copy-Item -Path $sourceNugetConfig -Destination $destinationNugetConfig -Recurse
 }
 
-function Invoke-CopyApplicationFilesToDockerContext {
-	Invoke-Step { CopyApplicationFilesToDockerContext }
+function Invoke-CopyTempFilesToDockerContext {
+    Invoke-Step { CopyTempFilesToDockerContext }
 }
 
-function RemoveApplicationFilesFromDockerContext {
-	$destinationApplication = "$dockerRoot/Application/"
-	if (Test-Path $destinationApplication) {
-		Remove-Item $destinationApplication -Recurse -Force
-	}
+function RemoveDockerContextTempFiles {
+    $destinationApplication = "$dockerRoot/Application/"
+    if (Test-Path $destinationApplication) {
+        Remove-Item $destinationApplication -Recurse -Force
+    }
 }
 
-function Invoke-RemoveApplicationFilesFromDockerContext {
-	Invoke-Step { RemoveApplicationFilesFromDockerContext }
+function Invoke-RemoveDockerContextTempFiles {
+    Invoke-Step { RemoveDockerContextTempFiles }
 }
 
 Invoke-Main {
-    if($IsLocalBuild)
-    {
+    if ($IsLocalBuild) {
         $nugetExePath = Install-NugetCli
         Set-Alias nuget $nugetExePath -Scope Global -Verbose
     }
@@ -494,23 +490,23 @@ Invoke-Main {
             Invoke-Build
             Invoke-AdminApiDockerDeploy
         }
-        BuildAndRunAdminApiDevDocker{
+        BuildAndRunAdminApiDevDocker {
             Invoke-BuildAdminApiDevDockerImage
             Invoke-RunAdminApiDevDockerContainer
         }
-        RunAdminApiDevDockerContainer{
+        RunAdminApiDevDockerContainer {
             Invoke-RunAdminApiDevDockerContainer
         }
-        RunAdminApiDevDockerCompose{
+        RunAdminApiDevDockerCompose {
             Invoke-RunAdminApiDevDockerCompose
         }
-        CopyApplicationFilesToDockerContext{
-			Invoke-RemoveApplicationFilesFromDockerContext
-			Invoke-CopyApplicationFilesToDockerContext
-		}
-		RemoveApplicationFilesFromDockerContext{
-			Invoke-RemoveApplicationFilesFromDockerContext
-		}
+        CopyToDockerContext {
+            Invoke-RemoveDockerContextTempFiles
+            Invoke-CopyTempFilesToDockerContext
+        }
+        RemoveDockerContextFiles {
+            Invoke-RemoveDockerContextTempFiles
+        }
         default { throw "Command '$Command' is not recognized" }
     }
 }

@@ -5,6 +5,7 @@
 
 using EdFi.Ods.AdminApi.Infrastructure;
 using EdFi.Ods.AdminApi.Infrastructure.Database.Commands;
+using EdFi.Ods.AdminApi.Infrastructure.Extensions;
 
 namespace EdFi.Ods.AdminApi.Features.Applications;
 
@@ -15,12 +16,12 @@ public class DeleteApplication : IFeature
         AdminApiEndpointBuilder.MapDelete(endpoints, "/applications/{id}", Handle)
             .WithDefaultDescription()
             .WithRouteOptions(b => b.WithResponseCode(200, FeatureConstants.DeletedSuccessResponseDescription))
-            .BuildForVersions(AdminApiVersions.V1);
+            .BuildForVersions(AdminApiVersions.V2);
     }
 
     public Task<IResult> Handle(IDeleteApplicationCommand deleteApplicationCommand, int id)
     {
         deleteApplicationCommand.Execute(id);
-        return Task.FromResult(AdminApiResponse.Deleted("Application"));
+        return Task.FromResult(Results.Ok("Application".ToJsonObjectResponseDeleted()));
     }
 }
