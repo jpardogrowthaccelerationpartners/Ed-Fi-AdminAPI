@@ -77,6 +77,7 @@ jobs:
           newman run './E2E Tests/Admin-API-Full-Collection.json' \
             -e './E2E Tests/Admin API Docker-multitenant.postman_environment.json' \
             -r cli,junit,htmlextra \
+            --delay-request 2000 \
             --reporter-htmlextra-title 'AdminAPI - 2.0' \
             --reporter-htmlextra-export './report-html/results.html' \
             --reporter-junit-export ./reports/report.xml \
