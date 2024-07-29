@@ -38,6 +38,9 @@ public class RegisterService : IRegisterService
 
         await _validator.GuardAsync(request);
 
+        request.ClientId = System.Net.WebUtility.UrlDecode(request.ClientId);
+        request.ClientSecret = System.Net.WebUtility.UrlDecode(request.ClientSecret);
+
         var existingApp = await _applicationManager.FindByClientIdAsync(request.ClientId!);
         if (existingApp != null)
             throw new ValidationException(new[] { new ValidationFailure(nameof(request.ClientId), $"ClientId {request.ClientId} already exists") });
