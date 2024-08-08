@@ -50,7 +50,7 @@ jobs:
         run: |
           docker compose \
             -f '../../Docker/Compose/pgsql/SingleTenant/compose-build-dev.yml' \
-            --env-file './E2E Tests/gh-action-setup/.automation.pgsql.env' \
+            --env-file './E2E Tests/gh-action-setup/.pgsql.env' \
             up -d
 
       - name: Verify containers are running
