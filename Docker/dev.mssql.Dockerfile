@@ -12,8 +12,8 @@ RUN apk --no-cache add curl=~8 mssql-tools="18.6.1.1-1"
 # hadolint ignore=DL3006
 FROM buildbase AS publish
 WORKDIR /source
-COPY --from=assets ./Application/NuGet.Config EdFi.Ods.AdminApi/
-COPY --from=assets ./Application/EdFi.Ods.AdminApi EdFi.Ods.AdminApi/
+COPY ./Application/NuGet.Config EdFi.Ods.AdminApi/
+COPY ./Application/EdFi.Ods.AdminApi EdFi.Ods.AdminApi/
 
 WORKDIR /source/EdFi.Ods.AdminApi
 RUN dotnet restore && dotnet build -c Release
