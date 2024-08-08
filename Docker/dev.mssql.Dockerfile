@@ -8,7 +8,8 @@
 # The extra layers in the middle support caching of base layers.
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0.203-alpine3.18@sha256:2a8dca3af111071172b1629c12eefaeca0d6c2954887c4489195771c9e90833c as buildBase
-RUN apk --no-cache add curl=~8 mssql-tools=~18
+RUN apk --no-cache add curl=~8 && \
+    curl -O https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/mssql-tools_17.5.2.1-1_amd64.apk
 # hadolint ignore=DL3006
 FROM buildbase AS publish
 WORKDIR /source
