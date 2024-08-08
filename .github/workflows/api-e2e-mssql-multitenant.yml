@@ -50,7 +50,7 @@ jobs:
         run: |
           docker compose \
             -f '../../Docker/Compose/mssql/MultiTenant/compose-build-dev-multi-tenant.yml' \
-            --env-file './E2E Tests/gh-action-setup/.automation.mssql.env' \
+            --env-file './E2E Tests/gh-action-setup/.mssql.env' \
             up -d
 
       - name: Verify containers are running
