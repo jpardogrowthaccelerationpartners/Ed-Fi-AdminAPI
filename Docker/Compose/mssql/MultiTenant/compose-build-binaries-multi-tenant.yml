@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
+version: "3.8"
+
+services:
+  nginx:
+    build:
+      context: ../../../Settings/gateway/
+      dockerfile: Dockerfile
+    environment:
+      ADMIN_API_VIRTUAL_NAME: "${ADMIN_API_VIRTUAL_NAME:-adminapi}"
+    ports:
+      - "443:443"
+      - "80:80"
+    container_name: ed-fi-gateway-adminapi-packaged
+    restart: always
+    hostname: nginx
+    volumes:
+      - ../../../Settings/ssl:/ssl/
+      - ../../../Settings/gateway/adminapi-packaged.conf:/etc/nginx/templates/default.conf.template
+    depends_on:
+      - adminapi
+
+  adminapi:
+    build:
+      context: ../../../
+      dockerfile: api.mssql.Dockerfile
+    environment:
+      ADMIN_WAIT_MSSQL_HOSTS: "db-admin-tenant1 db-admin-tenant2"
+      SQLSERVER_ADMIN_DATASOURCE: db-admin
+      SQLSERVER_ODS_DATASOURCE: db-admin
+      SQLSERVER_USER: ${SQLSERVER_USER:-sa}
+      SQLSERVER_PASSWORD: "${SQLSERVER_PASSWORD:-P@55w0rd}"
+      SQLSERVER_TENANT1_PORT: 1433
+      SQLSERVER_TENANT2_PORT: 1433
+      DATABASEENGINE: "SqlServer"
+      AUTHORITY: ${AUTHORITY}
+      ISSUER_URL: ${ISSUER_URL}
+      SIGNING_KEY: ${SIGNING_KEY}
+      ADMIN_API_VIRTUAL_NAME: ${ADMIN_API_VIRTUAL_NAME:-adminapi}
+      AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
+      AppSettings__DefaultPageSizeLimit: ${PAGING_LIMIT:-25}
+      MULTITENANCY_ENABLED: "${MULTITENANCY_ENABLED:-true}"
+      AppSettings__PreventDuplicateApplications: ${PREVENT_DUPLICATE_APPLICATIONS:-false}
+      ASPNETCORE_ENVIRONMENT: "multitenantdocker"
+      DEFAULT_TENANT: ${DEFAULT_TENANT:-tenant2}
+    volumes:
+      - ./appsettings.dockertemplate.json:/app/appsettings.dockertemplate.json
+    entrypoint: ["/bin/sh"]
+    command: ["-c","envsubst < /app/appsettings.dockertemplate.json > /app/appsettings.multitenantdocker.json && /app/run.sh"]
+    depends_on:
+      - db-admin-tenant1
+      - db-admin-tenant2
+    restart: always
+    hostname: ${ADMIN_API_VIRTUAL_NAME:-adminapi}
+    container_name: adminapi-packaged
+    healthcheck:
+      test: ${ADMIN_API_HEALTHCHECK_TEST}
+      start_period: "60s"
+      retries: 3
+
+  db-admin-tenant1:
+    build:
+      context: ../../../Settings/DB-Admin/mssql/
+      dockerfile: Dockerfile
+    environment:
+      SA_PASSWORD: "${SA_PASSWORD:-P@55w0rd}"
+      ACCEPT_EULA: "Y"
+      SQLSERVER_ADMIN_DATASOURCE: db-admin
+      SQLSERVER_ODS_DATASOURCE: db-admin
+      SQLSERVER_PORT: 1433
+      SQLSERVER_USER: ${SQLSERVER_USER:-sa}
+      SQLSERVER_PASSWORD: "${SQLSERVER_PASSWORD:-P@55w0rd}"
+    ports:
+      - 1433:1433
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
+      retries: 10
+    volumes:
+      - vol-db-admin-adminapi-tenant1:/var/lib/mssql/data
+    restart: always
+    container_name: ed-fi-db-admin-adminapi-tenant1
+
+  db-admin-tenant2:
+    build:
+      context: ../../../Settings/DB-Admin/mssql/
+      dockerfile: Dockerfile
+    environment:
+      SA_PASSWORD: "${SA_PASSWORD:-P@55w0rd}"
+      ACCEPT_EULA: "Y"
+      SQLSERVER_ADMIN_DATASOURCE: db-admin
+      SQLSERVER_ODS_DATASOURCE: db-admin
+      SQLSERVER_PORT: 1433
+      SQLSERVER_USER: ${SQLSERVER_USER:-sa}
+      SQLSERVER_PASSWORD: "${SQLSERVER_PASSWORD:-P@55w0rd}"
+    ports:
+      - 1434:1433
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
+      retries: 10
+    volumes:
+      - vol-db-admin-adminapi-tenant2:/var/lib/mssql/data
+    restart: always
+    container_name: ed-fi-db-admin-adminapi-tenant2
+
+volumes:
+  vol-db-admin-adminapi-tenant1:
+    driver: local
+    name: vol-db-admin-adminapi-tenant1
+  vol-db-admin-adminapi-tenant2:
+    driver: local
+    name: vol-db-admin-adminapi-tenant2

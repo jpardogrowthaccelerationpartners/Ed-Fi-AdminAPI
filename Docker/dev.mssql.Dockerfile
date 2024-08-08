@@ -8,21 +8,10 @@
 # The extra layers in the middle support caching of base layers.
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0.203-alpine3.18@sha256:2a8dca3af111071172b1629c12eefaeca0d6c2954887c4489195771c9e90833c as buildBase
-RUN apk --no-cache add curl=~8
-ENV DB_FOLDER_ABC=$DATABASE_ENGINE_FOLDER
-ARG DB_FOLDER_DEF=$DATABASE_ENGINE_FOLDER
-RUN echo "ATTT: ${DB_FOLDER_ABC}"
-RUN echo "BTTT: ${DB_FOLDER_DEF}"
-RUN echo "cTTT: ${DATABASE_ENGINE_FOLDER}"
-
-RUN if [ -z "$$DATABASE_ENGINE_FOLDER" ]; then echo "1. ENGINE_FOLDER is not set";  fi
-RUN if [ -z "$$DB_FOLDER_ABC" ]; then echo "2. ENGINE_FOLDER is not set"; fi
-RUN if [ -z "$$DB_FOLDER_DEF" ]; then echo "3. ENGINE_FOLDER is not set";  fi
-
+RUN apk --no-cache add curl=~8 mssql-tools=18.6.1.1-1
 # hadolint ignore=DL3006
 FROM buildbase AS publish
 WORKDIR /source
-RUN echo "${PWD} - ${pwd}"
 COPY --from=assets ./Application/NuGet.Config EdFi.Ods.AdminApi/
 COPY --from=assets ./Application/EdFi.Ods.AdminApi EdFi.Ods.AdminApi/
 
@@ -62,3 +51,4 @@ EXPOSE ${ASPNETCORE_HTTP_PORTS}
 USER edfi
 
 ENTRYPOINT ["/app/run.sh"]
+#ENTRYPOINT ["tail", "-f", "/dev/null"]
