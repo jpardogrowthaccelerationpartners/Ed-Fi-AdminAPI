@@ -7,7 +7,7 @@
 set -e
 set +x
 
-envsubst < /app/appsettings.Docker.mssql.json > /app/temp.json
+envsubst < appsettings.Docker.json > /app/temp.json
 
 mv /app/temp.json /app/appsettings.json
 
