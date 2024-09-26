@@ -66,11 +66,6 @@ jobs:
 
       - name: Install Tools
         run: npm install -g newman newman-reporter-htmlextra postman-combine-collections@1.1.2
-        
-      - name: List Directory
-        run: |
-          cd .
-          ls -a /tmp/AdminApiScripts
           
       - name: Combine Collections
         run: |
@@ -90,6 +85,7 @@ jobs:
 
       - name: Get Docker logs
         run: |
+          docker exec ed-fi-db-admin-adminapi ls /tmp/AdminApiScripts/PgSql
           mkdir docker-logs
           docker logs adminapi > docker-logs/adminapi.log
           docker logs ed-fi-db-admin-adminapi > docker-logs/ed-fi-db-admin.log
