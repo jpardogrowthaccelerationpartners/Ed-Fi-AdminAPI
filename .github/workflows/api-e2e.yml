@@ -70,7 +70,7 @@ jobs:
       - name: List Directory
         run: |
           cd .
-          ls /tmp/  
+          ls -a /tmp/AdminApiScripts
           
       - name: Combine Collections
         run: |
