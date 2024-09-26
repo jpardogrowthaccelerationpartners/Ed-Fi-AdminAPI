@@ -53,7 +53,11 @@ jobs:
             -f '../../Docker/Compose/pgsql/compose-build-dev.yml' \
             --env-file './E2E Tests/gh-action-setup/.automation.env' \
             up -d
-
+            
+      - name: List Directory
+        run: cd .
+        
+        
       - name: Verify containers are running
         run: |
           chmod +x './E2E Tests/gh-action-setup/inspect.sh'
@@ -66,9 +70,6 @@ jobs:
 
       - name: Install Tools
         run: npm install -g newman newman-reporter-htmlextra postman-combine-collections@1.1.2
-        
-      - name: List Directory
-        run: pwd
 
       - name: Combine Collections
         run: |
