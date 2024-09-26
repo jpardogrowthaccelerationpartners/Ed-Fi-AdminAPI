@@ -66,6 +66,9 @@ jobs:
 
       - name: Install Tools
         run: npm install -g newman newman-reporter-htmlextra postman-combine-collections@1.1.2
+        
+      - name: List Directory
+        run: ls /tmp/AdminApiScripts/PgSql
 
       - name: Combine Collections
         run: |
