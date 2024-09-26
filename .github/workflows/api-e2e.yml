@@ -55,8 +55,9 @@ jobs:
             up -d
             
       - name: List Directory
-        run: cd .
-        
+        run: |
+          cd .
+          ls /tmp/        
         
       - name: Verify containers are running
         run: |
