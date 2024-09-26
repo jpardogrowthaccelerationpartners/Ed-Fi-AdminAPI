@@ -52,12 +52,7 @@ jobs:
           docker compose \
             -f '../../Docker/Compose/pgsql/compose-build-dev.yml' \
             --env-file './E2E Tests/gh-action-setup/.automation.env' \
-            up -d
-            
-      - name: List Directory
-        run: |
-          cd .
-          ls /tmp/        
+            up -d      
         
       - name: Verify containers are running
         run: |
@@ -71,7 +66,12 @@ jobs:
 
       - name: Install Tools
         run: npm install -g newman newman-reporter-htmlextra postman-combine-collections@1.1.2
-
+        
+      - name: List Directory
+        run: |
+          cd .
+          ls /tmp/  
+          
       - name: Combine Collections
         run: |
           postman-combine-collections -f './E2E Tests/Admin API E2E.postman_collection*.json' \
